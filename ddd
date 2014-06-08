@@ -1,0 +1,30 @@
+#!/usr/bin/python3
+# -*- coding: UTF-8 -*-
+#Requres python3
+__author__ = 'larrabee'
+
+import argparse
+from py4backup_lib import create_diff, restore
+
+version = '0.1.02'
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-file', '--first', help='Full backup')
+parser.add_argument('-s', '--second', help='If backup: current state; If restore: diff file')
+parser.add_argument('-r', '--result', help=' Output file. If backup: diff file; If restore: diff file')
+parser.add_argument('-v', '--version', default=False, action='store_true', help='Display program version')
+parser.add_argument('--bs', default=4096, help='Block size')
+parser.add_argument('--hash', default=None, help='Hash algorithm. Default is None. You can different between'
+                                                 ' md5 and crc32')
+parser.add_argument('--restore', default=False, action='store_true', help='Restore mod. Create diff from diff')
+args = parser.parse_args()
+
+
+if args.version:
+    print('Version: ', version, '\nLicense: GPLv3\nAuthor: larrabee@nixdi.com')
+    exit(0)
+
+if args.restore:
+    restore(diff_file=args.second, result=args.result, full_backup=args.first)
+else:
+    create_diff(full_backup=args.first, current_backup=args.second, result=args.result)
