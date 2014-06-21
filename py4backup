@@ -12,7 +12,7 @@ import py4backup_lib as p4bl
 
 
 #Default vars
-version = '1.5.1'
+version = '1.5.2'
 confdir = '/etc/py4backup/'
 today = datetime.date.today()
 
@@ -350,9 +350,9 @@ def create_copy_with_rsync(source=str(job.snpath) + conf.temp_snap_name + '/', d
             log.add('Error occurred while searching for latest full backup in ', dest,
                     '\n' + traceback.format_exc(), mtype=3)
         try:
-            if subprocess.call(['rsync', '-ac', '--inplace', '--delete', '--backup',
-                                '--backup-dir=' + dest + str(today) + '-diff', source,
-                                latestfull] + rsync_lists().split()) != 0:
+            if subprocess.call(['rsync', '-a', '--inplace', '--delete', '--backup',
+                                '--link-dest=' + latestfull, source, dest + str(today) + '-diff'
+                                ] + rsync_lists().split()) != 0:
                 raise SystemError
         except:
             log.add('Cannot create diff backup of ', source, ' to ', dest + str(today) + '-diff',
@@ -363,7 +363,7 @@ def create_copy_with_rsync(source=str(job.snpath) + conf.temp_snap_name + '/', d
             job_count.get_size(dest + str(today) + '-diff/')
     else:
         try:
-            if subprocess.call(['rsync', '-acAX', source, dest + str(today) + '-full/'] + rsync_lists().split()) != 0:
+            if subprocess.call(['rsync', '-aAX', source, dest + str(today) + '-full/'] + rsync_lists().split()) != 0:
                 raise SystemError
         except:
             log.add('Cannot create full backup of ', source, ' to ', dest + str(today) + '-full', ' with rsync',
