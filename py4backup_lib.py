@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 #Requres python3
 __author__ = 'larrabee'
-#version 1.1.1
+#version 1.1.2
 import re
 import os
 import datetime
@@ -24,7 +24,7 @@ class Logger():
     log_buffer = ''
 
     def __init__(self, logpath='', login='', passwd='', server='', port=25, tls=True, sendto='',
-                 log_with_time=True, attach=''):
+                 log_with_time=True, attach='', traceback=False):
         self.attach = attach
         self.log_with_time = log_with_time
         self.sendto = sendto
@@ -34,8 +34,9 @@ class Logger():
         self.passwd = passwd
         self.login = login
         self.logpath = logpath
+        self.traceback = traceback
 
-    def add(self, *message, mtype=0):
+    def add(self, *message, traceback='', mtype=0):
         str_message = ''
         if mtype == 0:
             smtype = 'INFO     :'
@@ -55,12 +56,15 @@ class Logger():
             smtype = 'UNK_CODE:'
         for element in message:
             str_message += str(element)
+        compose_massage = smtype
         if self.log_with_time:
             time = datetime.datetime.now()
-            self.log_buffer = self.log_buffer + smtype + time.strftime('%Y-%m-%d %H:%M:%S') + ': ' + str(
-                str_message) + '\n'
-        else:
-            self.log_buffer = self.log_buffer + smtype + str(str_message) + '\n'
+            compose_massage += time.strftime('%Y-%m-%d %H:%M:%S') + ': '
+        compose_massage += str(str_message)
+        if self.traceback:
+            compose_massage += '\nTraceback: ' + str(traceback)
+        compose_massage += '\n'
+        self.log_buffer += compose_massage
         if mtype == 3:
             raise JobError
         elif mtype == 4:
@@ -266,6 +270,8 @@ class MainConfigParser():
         self.logpath = '/var/log/py4backup.log'
         self.logging = True
         self.log_with_time = True
+        self.command_output = False
+        self.traceback = False
         self.temp_snap_name = str('py4backup_temp_snap')
         self.host_desc = None
         self.pathenv = None
@@ -338,6 +344,16 @@ class MainConfigParser():
         try:
             self.log_with_time = config.getboolean('LOGGING', 'log_with_time')
             self.read_values.append('LOGGING:log_with_time')
+        except:
+            pass
+        try:
+            self.command_output = config.getboolean('LOGGING', 'command_output')
+            self.read_values.append('LOGGING:command_output')
+        except:
+            pass
+        try:
+            self.traceback = config.getboolean('LOGGING', 'traceback')
+            self.read_values.append('LOGGING:traceback')
         except:
             pass
         try:
@@ -574,8 +590,7 @@ def create_diff(full_backup, current_backup, result, blocksize=4096, hash_alg=No
     read_diff.close()
     write_diff.close()
     write_diff_map.close()
-    print('Total read blocks: ', total_blocks)
-    print('Changed blocks: ', changed_blocks)
+    return str('Total read blocks: ' + total_blocks + ' Changed blocks: ' + changed_blocks)
 
 
 def restore(diff_file, result, full_backup=None, blocksize=None, hash_alg=None):
@@ -622,7 +637,7 @@ def restore(diff_file, result, full_backup=None, blocksize=None, hash_alg=None):
     read_diff.close()
     write_result.close()
     read_diff_map.close()
-    print('Corrupted blocks:', corrupted_blocks)
+    return str('Corrupted blocks:' + str(corrupted_blocks))
 
 
 def date(time=False):

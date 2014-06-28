@@ -6,7 +6,7 @@ __author__ = 'larrabee'
 import argparse
 from py4backup_lib import create_diff, restore
 
-version = '0.1.02'
+version = '0.1.03'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-file', '--first', help='Full backup')
@@ -25,6 +25,7 @@ if args.version:
     exit(0)
 
 if args.restore:
-    restore(diff_file=args.second, result=args.result, full_backup=args.first)
+    print(restore(diff_file=args.second, result=args.result, full_backup=args.first))
 else:
-    create_diff(full_backup=args.first, current_backup=args.second, result=args.result)
+    print(create_diff(full_backup=args.first, current_backup=args.second, result=args.result, blocksize=args.bs,
+                hash_alg=args.hash))

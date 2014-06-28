@@ -12,7 +12,7 @@ import py4backup_lib as p4bl
 
 
 #Default vars
-version = '1.5.2'
+version = '1.5.3'
 confdir = '/etc/py4backup/'
 today = datetime.date.today()
 
@@ -26,7 +26,7 @@ job_count = p4bl.Counts()
 total_count = p4bl.Counts()
 conf = p4bl.MainConfigParser(config_path=confdir + 'py4backup.conf')
 log = p4bl.Logger(logpath=conf.logpath, login=conf.login, passwd=conf.passwd, server=conf.server, port=conf.port,
-                  sendto=conf.sendto, tls=conf.tls, log_with_time=conf.log_with_time)
+                  sendto=conf.sendto, tls=conf.tls, log_with_time=conf.log_with_time, traceback=conf.traceback)
 job = p4bl.JobParser(job_config_path=confdir + 'jobs.conf')
 #log.add('Read values from main config: ', conf.read_values)
 
@@ -35,8 +35,8 @@ job = p4bl.JobParser(job_config_path=confdir + 'jobs.conf')
 def prescript():
     if job.prescript is not None:
         try:
-            print(job.prescript.split())
-            if subprocess.call(job.prescript.split()) != 0:
+            return_code = exec_shell_command(command=job.prescript.split())
+            if return_code != 0:
                 raise SystemError
         except SystemError:
             log.add('Pre backup script: ', job.prescript, ' executed with error', mtype=3)
@@ -51,7 +51,8 @@ def prescript():
 def postscript():
     if job.postscript is not None:
         try:
-            if subprocess.call(job.postscript.split()) != 0:
+            return_code = exec_shell_command(command=job.postscript.split())
+            if return_code != 0:
                 raise SystemError
         except SystemError:
             log.add('Post backup script: ', job.postscript, ' executed with error', mtype=3)
@@ -132,19 +133,22 @@ def start_backup(jtype):
                 if latestfull is None:
                     raise FileNotFoundError
             except FileNotFoundError:
-                log.add('Full backup not found in ', job.dpath, mtype=3)
+                log.add('Full backup of ', element, ' not found in ', job.dpath, mtype=2)
+                continue
             except:
                 log.add('Error while search full backup in ', job.dpath, mtype=3)
             lvm_create_snapshot(job.sopath + element)
             try:
-                p4bl.create_diff(full_backup=job.dpath + latestfull, current_backup=job.sopath + conf.temp_snap_name,
-                                 result=job.dpath + str(today) + '-' + element + '-diff', hash_alg=str(conf.ddd_hash),
-                                 blocksize=conf.ddd_bs)
+                lvm_diff_result = p4bl.create_diff(full_backup=job.dpath + latestfull, current_backup=job.sopath +
+                                                   conf.temp_snap_name,
+                                                   result=job.dpath + str(today) + '-' + element + '-diff',
+                                                   hash_alg=str(conf.ddd_hash), blocksize=conf.ddd_bs)
             except:
-                log.add('Error occurred while creating diff backup. Traceback:\n', traceback.format_exc(), mtype=2)
+                log.add('Error occurred while creating diff backup.', traceback=traceback.format_exc(), mtype=2)
             else:
                 log.add('Successfully create diff backup of ', job.sopath + element, ' to ',
-                        job.dpath + str(today) + '-' + element + '-diff', ' Full backup: ', job.dpath + latestfull)
+                        job.dpath + str(today) + '-' + element + '-diff', ' Full backup: ',
+                        job.dpath + latestfull, lvm_diff_result)
             job_count.get_size(job.dpath + latestfull)
             lvm_check_exist_snapshot()
         postscript()
@@ -166,6 +170,22 @@ def start_backup(jtype):
         log.add('Job type is None (wrong job type or job type is not specified)', mtype=3)
 
 
+def exec_shell_command(command):
+    try:
+        process = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        out = process.communicate()
+        format_out = str(out).replace('\\n', '\n')
+        return_code = process.returncode
+    except:
+        return_code = 1
+        format_out = ''
+        log.add(traceback=traceback.format_exc(), mtype=2)
+    finally:
+        if conf.command_output:
+            log.add('Command output: ', format_out)
+        return return_code
+
+
 #File backup
 def delete_old_backups():
     if job.dayexp is None:
@@ -181,7 +201,9 @@ def delete_old_backups():
             delta = today - backupdate
             if (delta.days > job.dayexp) and (job.dayexp != -1):
                 try:
-                    if subprocess.call(['rm', '-rf', job.dpath + element]) != 0:
+                    command = ['rm', '-rf', job.dpath + element]
+                    return_code = exec_shell_command(command=command)
+                    if return_code != 0:
                         raise SystemError
                 except:
                     log.add('Cannot delete: ', job.dpath + element, mtype=1)
@@ -201,9 +223,9 @@ def file_backup_check_vars(checkso=False, checksn=False, checkd=False):
             if sopathmatch.group() != job.sopath:
                 raise ValueError()
         except ValueError or TypeError:
-            log.add('Invalid path: ', job.sopath, '\n' + traceback.format_exc(), mtype=3)
+            log.add('Invalid path: ', job.sopath, mtype=3)
         except:
-            log.add('Unknown error occurred while check source path', '\n' + traceback.format_exc(), mtype=3)
+            log.add('Unknown error occurred while check source path', traceback=traceback.format_exc(), mtype=3)
         else:
             log.add('file_backup_check_vars: source path is good')
     if checksn:
@@ -212,9 +234,9 @@ def file_backup_check_vars(checkso=False, checksn=False, checkd=False):
             if snpathmatch.group() != job.snpath:
                 raise ValueError()
         except ValueError or TypeError:
-            log.add('Invalid path: ', job.snpath, '\n' + traceback.format_exc(), mtype=3)
+            log.add('Invalid path: ', job.snpath, mtype=3)
         except:
-            log.add('Unknown error occurred while check snapshot path', '\n' + traceback.format_exc(), mtype=3)
+            log.add('Unknown error occurred while check snapshot path', traceback=traceback.format_exc(), mtype=3)
         else:
             log.add('file_backup_check_vars: snapshot path is good')
     #Destination path check
@@ -224,9 +246,9 @@ def file_backup_check_vars(checkso=False, checksn=False, checkd=False):
             if dpathmatch.group() != job.dpath:
                 raise ValueError()
         except ValueError or TypeError:
-            log.add('Invalid path: ', job.dpath, '\n' + traceback.format_exc(), mtype=3)
+            log.add('Invalid path: ', job.dpath, mtype=3)
         except:
-            log.add('Unknown error occurred while check destination path', '\n' + traceback.format_exc(), mtype=3)
+            log.add('Unknown error occurred while check destination path', traceback=traceback.format_exc(), mtype=3)
         else:
             log.add('file_backup_check_vars: destination path is good')
 
@@ -238,12 +260,15 @@ def btrfs_check_exist_snapshot(tempsnap=True):
             for element in btrfslistsnpath:
                 if element == conf.temp_snap_name:
                     try:
-                        if subprocess.call(['btrfs', 'subvolume', 'delete', job.snpath + conf.temp_snap_name]) != 0:
+                        command = ['btrfs', 'subvolume', 'delete', job.snpath + conf.temp_snap_name]
+                        return_code = exec_shell_command(command=command)
+                        if return_code != 0:
                             raise SystemError
                     except:
                         log.add('Cannot delete snapshot: ', job.snpath + conf.temp_snap_name, mtype=3)
+
         except:
-            log.add('Unknown error occurred while check temp snapshot', '\n' + traceback.format_exc(), mtype=3)
+            log.add('Unknown error occurred while check temp snapshot', traceback=traceback.format_exc(), mtype=3)
         else:
             log.add('Successfully delete snapshot or snapshot not exist:', job.snpath + conf.temp_snap_name)
     else:
@@ -257,7 +282,7 @@ def btrfs_check_exist_snapshot(tempsnap=True):
                 log.add('Module: btrfs_check_exist_snapshot. Invalid snapshot name, cannot parse it: ', element,
                         mtype=1)
             except FileExistsError:
-                log.add('Snapshot ' + job.snpath + element + ' exist', '\n' + traceback.format_exc(), mtype=3)
+                log.add('Snapshot ' + job.snpath + element + ' exist', traceback=traceback.format_exc(), mtype=3)
             except:
                 log.add('Unknown error in current_job: ', element, mtype=1)
         log.add('Persistent today snapshot not found in: ', job.snpath)
@@ -295,21 +320,22 @@ def rsync_lists():
 def btrfs_create_snapshot(tempsnap=True):
     if tempsnap:
         try:
-            if subprocess.call(
-                    ['btrfs', 'subvolume', 'snapshot', '-r', job.sopath, job.snpath + conf.temp_snap_name]) != 0:
+            command = ['btrfs', 'subvolume', 'snapshot', '-r', job.sopath, job.snpath + conf.temp_snap_name]
+            return_code = exec_shell_command(command=command)
+            if return_code != 0:
                 raise SystemError
         except:
-            log.add('Cannot create temp snapshot of ', job.sopath, 'in ', job.snpath + conf.temp_snap_name,
-                    '\n' + traceback.format_exc(), mtype=3)
+            log.add('Cannot create temp snapshot of ', job.sopath, 'in ', job.snpath + conf.temp_snap_name, mtype=3)
         else:
             log.add('Successfully create temp snapshot in: ', job.snpath + conf.temp_snap_name)
     else:
         try:
-            if subprocess.call(['btrfs', 'subvolume', 'snapshot', '-r', job.sopath, job.snpath + str(today)]) != 0:
+            command = ['btrfs', 'subvolume', 'snapshot', '-r', job.sopath, job.snpath + str(today)]
+            return_code = exec_shell_command(command=command)
+            if return_code != 0:
                 raise SystemError
         except:
-            log.add('Cannot create persistent snapshot of ', job.sopath, 'in ', job.snpath + str(today),
-                    '\n' + traceback.format_exc(), mtype=3)
+            log.add('Cannot create persistent snapshot of ', job.sopath, 'in ', job.snpath + str(today), mtype=3)
         else:
             log.add('Successfully create persistent snapshot: ', job.snpath + str(today))
 
@@ -322,7 +348,9 @@ def btrfs_delete_old_snapshots():
             delta = today - backupdate
             if (delta.days > job.dayexp) and (job.dayexp != -1):
                 try:
-                    if subprocess.call(['btrfs', 'sub', 'delete', job.snpath + element]) != 0:
+                    command = ['btrfs', 'sub', 'delete', job.snpath + element]
+                    return_code = exec_shell_command(command=command)
+                    if return_code != 0:
                         raise SystemError
                 except:
                     log.add('Cannot delete: ', job.dpath + element, mtype=1)
@@ -348,26 +376,29 @@ def create_copy_with_rsync(source=str(job.snpath) + conf.temp_snap_name + '/', d
                 log.add('Full backup not found in ', dest, ' Exiting.', mtype=3)
         except:
             log.add('Error occurred while searching for latest full backup in ', dest,
-                    '\n' + traceback.format_exc(), mtype=3)
+                    traceback=traceback.format_exc(), mtype=3)
         try:
-            if subprocess.call(['rsync', '-a', '--inplace', '--delete', '--backup',
-                                '--link-dest=' + latestfull, source, dest + str(today) + '-diff'
-                                ] + rsync_lists().split()) != 0:
+            command = ['rsync', '-a', '--inplace', '--delete', '--backup', '--link-dest=' + latestfull, source,
+                                dest + str(today) + '-diff'] + rsync_lists().split()
+            return_code = exec_shell_command(command=command)
+            if return_code != 0:
                 raise SystemError
         except:
             log.add('Cannot create diff backup of ', source, ' to ', dest + str(today) + '-diff',
-                    '. Latest full backup: ', latestfull, ' with rsync', '\n' + traceback.format_exc(), mtype=3)
+                    '. Latest full backup: ', latestfull, ' with rsync', mtype=3)
         else:
             log.add('Successfully create copy of ', source, ' to ', dest + str(today) + '-diff', ' with rsync.',
                     'Latest full backup: ' + latestfull)
             job_count.get_size(dest + str(today) + '-diff/')
     else:
         try:
-            if subprocess.call(['rsync', '-aAX', source, dest + str(today) + '-full/'] + rsync_lists().split()) != 0:
+            command = ['rsync', '-aAX', source, dest + str(today) + '-full/'] + rsync_lists().split()
+            return_code = exec_shell_command(command=command)
+            if return_code != 0:
                 raise SystemError
         except:
             log.add('Cannot create full backup of ', source, ' to ', dest + str(today) + '-full', ' with rsync',
-                    '\n' + traceback.format_exc(), mtype=3)
+                    mtype=3)
         else:
             log.add('Successfully create copy of ', source, ' to ', dest + str(today) + '-full', ' with rsync')
             job_count.get_size(dest + str(today) + '-full/')
@@ -380,9 +411,9 @@ def lvm_backup_check_vars():
         if sopathmatch.group() != job.sopath:
             raise ValueError()
     except ValueError or TypeError:
-        log.add('Invalid source path: ', job.sopath, '\n' + traceback.format_exc(), mtype=3)
+        log.add('Invalid source path: ', job.sopath, traceback=traceback.format_exc(), mtype=3)
     except:
-        log.add('Invalid path or another unknown error: ', job.sopath, '\n' + traceback.format_exc(), mtype=3)
+        log.add('Invalid path or another unknown error: ', job.sopath, traceback=traceback.format_exc(), mtype=3)
     else:
         log.add('lvm_backup_check_vars: source path is good')
     try:
@@ -390,9 +421,9 @@ def lvm_backup_check_vars():
         if dpathmatch.group() != job.dpath:
             raise ValueError()
     except ValueError or TypeError:
-        log.add('Invalid destination path: ', job.dpath, '\n' + traceback.format_exc(), mtype=3)
+        log.add('Invalid destination path: ', job.dpath, traceback=traceback.format_exc(), mtype=3)
     except:
-        log.add('Invalid path or another unknown error: ', job.dpath, '\n' + traceback.format_exc(), mtype=3)
+        log.add('Invalid path or another unknown error: ', job.dpath, traceback=traceback.format_exc(), mtype=3)
     else:
         log.add('lvm_backup_check_vars: destination path is good')
 
@@ -402,10 +433,12 @@ def lvm_check_exist_snapshot():
     for element in lvmlistsopath:
         if conf.temp_snap_name in element:
             try:
-                if subprocess.call(['lvremove', '--autobackup', 'y', '--force', job.sopath + element]) != 0:
+                command = ['lvremove', '--autobackup', 'y', '--force', job.sopath + element]
+                return_code = exec_shell_command(command=command)
+                if return_code != 0:
                     raise SystemError
             except:
-                log.add('Cannot delete: ', job.sopath + element, '\n' + traceback.format_exc(), mtype=3)
+                log.add('Cannot delete: ', job.sopath + element, mtype=3)
             else:
                 log.add('Delete old snapshot: ', job.sopath + element)
 
@@ -423,20 +456,23 @@ def lvm_generate_backup_list():
 
 def lvm_create_snapshot(lvmsnapsource=None):
     try:
-        if subprocess.call(['lvcreate', '--size', '10G', '-A', 'y', '--snapshot', '--name', conf.temp_snap_name,
-                            lvmsnapsource]) != 0:
+        command = ['lvcreate', '--size', '10G', '-A', 'y', '--snapshot', '--name', conf.temp_snap_name, lvmsnapsource]
+        return_code = exec_shell_command(command=command)
+        if return_code != 0:
             raise SystemError
     except SystemError:
         log.add('Cannot create snapshot of ', lvmsnapsource, mtype=3)
     except:
-        log.add('Unknown error while creating snapshot of ', lvmsnapsource, '\n' + traceback.format_exc(), mtype=3)
+        log.add('Unknown error while creating snapshot of ', lvmsnapsource, mtype=3)
     else:
         log.add('Successfully create snapshot of: ', lvmsnapsource)
 
 
 def create_copy_with_dd(ddif=None, ddof=None):
     try:
-        if subprocess.call(['dd', 'if=' + ddif, 'of=' + ddof, 'bs=' + conf.bs]) != 0:
+        command = ['dd', 'if=' + ddif, 'of=' + ddof, 'bs=' + conf.bs]
+        return_code = exec_shell_command(command=command)
+        if return_code != 0:
             raise SystemError
     except:
         log.add('Cannot create dd copy. IF: ', ddif, ' OF: ', ddof, mtype=2)
@@ -486,7 +522,7 @@ for current_job in args.jobs:
         print(log.get_log(ask=True))
         exit(1)
     except:
-        log.add('Script failed with unexpected error. Traceback:\n', traceback.format_exc(), mtype=-4)
+        log.add('Script failed with unexpected error.', traceback=traceback.format_exc(), mtype=-4)
         total_count.stop_timer()
         log.add('Script was finished in ', total_count.get_timer_delta())
         log.add('Total backup size: ', total_count.return_total_size())
