@@ -1,0 +1,25 @@
+[MAIL]
+send_mail_reports = True
+login = login@test.com
+passwd = password
+sendto = mymail@test.com
+server = mail.test.com
+port = 25
+tls = True
+
+[DD]
+bs = 4M
+ddd_bs = 4096
+ddd_hash = md5
+
+[LOGGING]
+logpath = /var/log/py4backup.log
+enable_logging = True
+log_with_time = True
+traceback = False
+command_output = True
+
+[OTHER]
+temp_snap_name = py4backup_temp_snap
+host_desc = My Description
+pathenv = /sbin

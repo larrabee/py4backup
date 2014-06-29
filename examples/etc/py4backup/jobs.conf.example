@@ -1,0 +1,53 @@
+### Backup rootfs ###
+[btrfs-full-root]
+type = btrfs-full
+sopath = /
+snpath = /snapshots/
+dpath = /mnt/backup/root/
+exclude = var opt mnt
+dayexp = 30
+prescript = lvdisplay
+postscript = ls -l
+
+[btrfs-diff-root]
+type = btrfs-diff
+sopath = /
+snpath = /snapshots/
+dpath = /mnt/backup/root/
+dayexp = 30
+
+[btrfs-snap-root]
+type = btrfs-snap
+sopath = /
+snpath = /snapshots/
+dayexp = 30
+
+### Backup /home/ ###
+[file-full-home]
+type = file-full
+sopath = /home/
+dpath = /mnt/backup/home/
+dayexp = 50
+
+[file-diff-home]
+type = file-diff
+sopath = /home/
+dpath = /mnt/backup/home/
+dayexp = 50
+
+### Backup /dev/raid5_store/ ###
+[lvm-raid5]
+type = lvm-full
+sopath = /dev/raid5_store/
+dpath = /mnt/backup/raid5_store/
+dayexp = 14
+exclude = all
+include = rootvolume var_lv
+
+[lvm-raid5-diff]
+type = lvm-diff
+sopath = /dev/raid5_store/
+dpath = /mnt/backup/raid5_store/
+dayexp = 14
+exclude = all
+include = rootvolume var_lv
