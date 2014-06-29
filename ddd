@@ -11,12 +11,12 @@ version = '0.1.03'
 parser = argparse.ArgumentParser()
 parser.add_argument('-file', '--first', help='Full backup')
 parser.add_argument('-s', '--second', help='If backup: current state; If restore: diff file')
-parser.add_argument('-r', '--result', help=' Output file. If backup: diff file; If restore: diff file')
+parser.add_argument('-r', '--result', help=' Output file. If backup: diff file; If restore: full file')
 parser.add_argument('-v', '--version', default=False, action='store_true', help='Display program version')
 parser.add_argument('--bs', default=4096, help='Block size')
 parser.add_argument('--hash', default=None, help='Hash algorithm. Default is None. You can different between'
                                                  ' md5 and crc32')
-parser.add_argument('--restore', default=False, action='store_true', help='Restore mod. Create diff from diff')
+parser.add_argument('--restore', default=False, action='store_true', help='Restore mode. Create full from diff')
 args = parser.parse_args()
 
 
