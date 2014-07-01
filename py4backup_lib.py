@@ -590,7 +590,7 @@ def create_diff(full_backup, current_backup, result, blocksize=4096, hash_alg=No
     read_diff.close()
     write_diff.close()
     write_diff_map.close()
-    return str('Total read blocks: ' + total_blocks + ' Changed blocks: ' + changed_blocks)
+    return total_blocks,  changed_blocks
 
 
 def restore(diff_file, result, full_backup=None, blocksize=None, hash_alg=None):
@@ -637,7 +637,7 @@ def restore(diff_file, result, full_backup=None, blocksize=None, hash_alg=None):
     read_diff.close()
     write_result.close()
     read_diff_map.close()
-    return str('Corrupted blocks:' + str(corrupted_blocks))
+    return corrupted_blocks
 
 
 def date(time=False):

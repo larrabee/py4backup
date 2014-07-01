@@ -25,7 +25,10 @@ if args.version:
     exit(0)
 
 if args.restore:
-    print(restore(diff_file=args.second, result=args.result, full_backup=args.first))
+    corrupted_blocks = restore(diff_file=args.second, result=args.result, full_backup=args.first)
+    print('Corrupted blocks: ', corrupted_blocks)
+
 else:
-    print(create_diff(full_backup=args.first, current_backup=args.second, result=args.result, blocksize=args.bs,
-                hash_alg=args.hash))
+    total_blocks,  changed_blocks = create_diff(full_backup=args.first, current_backup=args.second, result=args.result,
+                                                blocksize=args.bs, hash_alg=args.hash)
+    print('Total blocks: ', total_blocks, ' Changed blocks: ', changed_blocks)

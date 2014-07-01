@@ -139,16 +139,16 @@ def start_backup(jtype):
                 log.add('Error while search full backup in ', job.dpath, mtype=3)
             lvm_create_snapshot(job.sopath + element)
             try:
-                lvm_diff_result = p4bl.create_diff(full_backup=job.dpath + latestfull, current_backup=job.sopath +
-                                                   conf.temp_snap_name,
-                                                   result=job.dpath + str(today) + '-' + element + '-diff',
-                                                   hash_alg=str(conf.ddd_hash), blocksize=conf.ddd_bs)
+                total_blocks,  changed_blocks = p4bl.create_diff(full_backup=job.dpath + latestfull,
+                                                                 current_backup=job.sopath + conf.temp_snap_name,
+                                                                 result=job.dpath + str(today) + '-' + element + '-diff',
+                                                                 hash_alg=str(conf.ddd_hash), blocksize=conf.ddd_bs)
             except:
                 log.add('Error occurred while creating diff backup.', traceback=traceback.format_exc(), mtype=2)
             else:
                 log.add('Successfully create diff backup of ', job.sopath + element, ' to ',
                         job.dpath + str(today) + '-' + element + '-diff', ' Full backup: ',
-                        job.dpath + latestfull, lvm_diff_result)
+                        job.dpath + latestfull, 'Total blocks: ', total_blocks, ' Changed blocks: ', changed_blocks)
             job_count.get_size(job.dpath + latestfull)
             lvm_check_exist_snapshot()
         postscript()
