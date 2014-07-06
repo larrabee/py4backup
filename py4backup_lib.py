@@ -61,8 +61,8 @@ class Logger():
             time = datetime.datetime.now()
             compose_massage += time.strftime('%Y-%m-%d %H:%M:%S') + ': '
         compose_massage += str(str_message)
-        if self.traceback:
-            compose_massage += '\nTraceback: ' + str(traceback)
+        if self.traceback and traceback != '':
+            compose_massage += '\n' + str(traceback)
         compose_massage += '\n'
         self.log_buffer += compose_massage
         if mtype == 3:
@@ -555,6 +555,10 @@ class FatalError(Exception):
 
 
 def create_diff(full_backup, current_backup, result, blocksize=4096, hash_alg=None):
+    if os.path.isfile(result + '.dd'):
+        os.remove(result + '.dd')
+    if os.path.isfile(result + '.ddm'):
+        os.remove(result + '.ddm')
     read_full = ReadFile(full_backup, block_size=int(blocksize))
     read_diff = ReadFile(current_backup, block_size=int(blocksize))
     write_diff = WriteFile(result + '.dd')
@@ -594,6 +598,8 @@ def create_diff(full_backup, current_backup, result, blocksize=4096, hash_alg=No
 
 
 def restore(diff_file, result, full_backup=None, blocksize=None, hash_alg=None):
+    if os.path.isfile(result):
+        os.remove(result)
     read_diff_map = ReadFile(diff_file + '.ddm', diff_map=True)
     control_string = read_diff_map.next(without_formatting=True)
     #Read values from .ddm file

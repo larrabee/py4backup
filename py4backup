@@ -40,8 +40,6 @@ def prescript():
                 raise SystemError
         except SystemError:
             log.add('Pre backup script: ', job.prescript, ' executed with error', mtype=3)
-        except FileNotFoundError:
-            log.add('Pre backup script: command or file not found', mtype=3)
         except:
             log.add('Unknown error occurred while execute pre backup script', mtype=3)
         else:
@@ -56,8 +54,6 @@ def postscript():
                 raise SystemError
         except SystemError:
             log.add('Post backup script: ', job.postscript, ' executed with error', mtype=3)
-        except FileNotFoundError:
-            log.add('Post backup script: command not found', mtype=3)
         except:
             log.add('Unknown error occurred while execute post backup script', mtype=3)
         else:
@@ -139,10 +135,10 @@ def start_backup(jtype):
                 log.add('Error while search full backup in ', job.dpath, mtype=3)
             lvm_create_snapshot(job.sopath + element)
             try:
-                total_blocks,  changed_blocks = p4bl.create_diff(full_backup=job.dpath + latestfull,
-                                                                 current_backup=job.sopath + conf.temp_snap_name,
-                                                                 result=job.dpath + str(today) + '-' + element + '-diff',
-                                                                 hash_alg=str(conf.ddd_hash), blocksize=conf.ddd_bs)
+                total_blocks, changed_blocks = p4bl.create_diff(full_backup=job.dpath + latestfull,
+                                                                current_backup=job.sopath + conf.temp_snap_name,
+                                                                result=job.dpath + str(today) + '-' + element + '-diff',
+                                                                hash_alg=str(conf.ddd_hash), blocksize=conf.ddd_bs)
             except:
                 log.add('Error occurred while creating diff backup.', traceback=traceback.format_exc(), mtype=2)
             else:
@@ -194,7 +190,8 @@ def delete_old_backups():
     try:
         listdpath = os.listdir(job.dpath)
     except:
-        log.add('Cannot list destination dir. Maybe set wrong permissions or media not mount.', mtype=3)
+        log.add('Cannot list destination dir. Maybe set wrong permissions or media not mount.', mtype=2)
+        return
     for element in listdpath:
         try:
             backupdate = datetime.date(int(element[0:4]), int(element[5:7]), int(element[8:10]))
@@ -377,31 +374,32 @@ def create_copy_with_rsync(source=str(job.snpath) + conf.temp_snap_name + '/', d
         except:
             log.add('Error occurred while searching for latest full backup in ', dest,
                     traceback=traceback.format_exc(), mtype=3)
-        try:
-            command = ['rsync', '-a', '--inplace', '--delete', '--backup', '--link-dest=' + latestfull, source,
-                                dest + str(today) + '-diff'] + rsync_lists().split()
-            return_code = exec_shell_command(command=command)
-            if return_code != 0:
-                raise SystemError
-        except:
-            log.add('Cannot create diff backup of ', source, ' to ', dest + str(today) + '-diff',
-                    '. Latest full backup: ', latestfull, ' with rsync', mtype=3)
-        else:
-            log.add('Successfully create copy of ', source, ' to ', dest + str(today) + '-diff', ' with rsync.',
+        command = ['rsync', '-a', '--inplace', '--delete', '--backup', '--link-dest=' + latestfull, source,
+                   dest + str(today) + '-diff'] + rsync_lists().split()
+        return_code = exec_shell_command(command=command)
+        if return_code == 0:
+            log.add('Successfully create diff copy of ', source, ' to ', dest + str(today) + '-diff', ' with rsync.',
                     'Latest full backup: ' + latestfull)
-            job_count.get_size(dest + str(today) + '-diff/')
+        elif return_code == 1:
+            log.add('Cannot create diff backup of ', source, ' to ', dest + str(today) + '-diff',
+                    '.Latest full backup: ', latestfull, ' with rsync', mtype=3)
+        elif (return_code == 23) or (return_code == 24):
+            log.add('Create diff copy with excludes. More info see in rsync output. Of ', source, ' to ', dest +
+                    str(today) + '-diff', ' with rsync.', 'Latest full backup: ' + latestfull, mtype=1)
+        job_count.get_size(dest + str(today) + '-diff/')
     else:
-        try:
-            command = ['rsync', '-aAX', source, dest + str(today) + '-full/'] + rsync_lists().split()
-            return_code = exec_shell_command(command=command)
-            if return_code != 0:
-                raise SystemError
-        except:
+
+        command = ['rsync', '-aAX', source, dest + str(today) + '-full/'] + rsync_lists().split()
+        return_code = exec_shell_command(command=command)
+        if return_code == 0:
+            log.add('Successfully create full copy of ', source, ' to ', dest + str(today) + '-full', ' with rsync')
+        elif return_code == 1:
             log.add('Cannot create full backup of ', source, ' to ', dest + str(today) + '-full', ' with rsync',
                     mtype=3)
-        else:
-            log.add('Successfully create copy of ', source, ' to ', dest + str(today) + '-full', ' with rsync')
-            job_count.get_size(dest + str(today) + '-full/')
+        elif (return_code == 23) or (return_code == 24):
+            log.add('Create full copy with excludes. More info see in rsync output. Of ', source, ' to ', dest +
+                    str(today) + '-full', ' with rsync', mtype=1)
+        job_count.get_size(dest + str(today) + '-full/')
 
 
 #LVM backup
