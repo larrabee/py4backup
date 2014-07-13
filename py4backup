@@ -141,6 +141,7 @@ def start_backup(jtype):
                                                                 hash_alg=str(conf.ddd_hash), blocksize=conf.ddd_bs)
             except:
                 log.add('Error occurred while creating diff backup.', traceback=traceback.format_exc(), mtype=2)
+                continue
             else:
                 log.add('Successfully create diff backup of ', job.sopath + element, ' to ',
                         job.dpath + str(today) + '-' + element + '-diff', ' Full backup: ',

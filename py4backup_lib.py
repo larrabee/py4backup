@@ -523,7 +523,7 @@ class WriteFile():
         if diff_map:
             self.file = open(self.filename, "a", encoding='ASCII')
         else:
-            self.file = open(self.filename, "ab")
+            self.file = open(self.filename, "wb")
 
     def write(self, data=None, control='', checksumm='', custom=None):
         if self.diff:
