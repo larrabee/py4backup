@@ -381,12 +381,12 @@ def create_copy_with_rsync(source=str(job.snpath) + conf.temp_snap_name + '/', d
         if return_code == 0:
             log.add('Successfully create diff copy of ', source, ' to ', dest + str(today) + '-diff', ' with rsync.',
                     'Latest full backup: ' + latestfull)
-        elif return_code == 1:
-            log.add('Cannot create diff backup of ', source, ' to ', dest + str(today) + '-diff',
-                    '.Latest full backup: ', latestfull, ' with rsync', mtype=3)
         elif (return_code == 23) or (return_code == 24):
             log.add('Create diff copy with excludes. More info see in rsync output. Of ', source, ' to ', dest +
                     str(today) + '-diff', ' with rsync.', 'Latest full backup: ' + latestfull, mtype=1)
+        else:
+            log.add('Cannot create diff backup of ', source, ' to ', dest + str(today) + '-diff',
+                    '.Latest full backup: ', latestfull, ' with rsync', mtype=3)
         job_count.get_size(dest + str(today) + '-diff/')
     else:
 
@@ -394,12 +394,12 @@ def create_copy_with_rsync(source=str(job.snpath) + conf.temp_snap_name + '/', d
         return_code = exec_shell_command(command=command)
         if return_code == 0:
             log.add('Successfully create full copy of ', source, ' to ', dest + str(today) + '-full', ' with rsync')
-        elif return_code == 1:
-            log.add('Cannot create full backup of ', source, ' to ', dest + str(today) + '-full', ' with rsync',
-                    mtype=3)
         elif (return_code == 23) or (return_code == 24):
             log.add('Create full copy with excludes. More info see in rsync output. Of ', source, ' to ', dest +
                     str(today) + '-full', ' with rsync', mtype=1)
+        else:
+            log.add('Cannot create full backup of ', source, ' to ', dest + str(today) + '-full', ' with rsync',
+                    mtype=3)
         job_count.get_size(dest + str(today) + '-full/')
 
 

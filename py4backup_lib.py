@@ -35,6 +35,9 @@ class Logger():
         self.login = login
         self.logpath = logpath
         self.traceback = traceback
+        self.errors = 0
+        self.job_errors = 0
+        self.fatal_errors = 0
 
     def add(self, *message, traceback='', mtype=0):
         str_message = ''
@@ -65,9 +68,13 @@ class Logger():
             compose_massage += '\n' + str(traceback)
         compose_massage += '\n'
         self.log_buffer += compose_massage
-        if mtype == 3:
+        if mtype == 2:
+            self.errors += 1
+        elif mtype == 3:
+            self.job_errors += 1
             raise JobError
         elif mtype == 4:
+            self.fatal_errors += 1
             raise FatalError
 
     def write(self):
@@ -144,7 +151,8 @@ class Logger():
             except:
                 Logger.add(self, 'Unknown error while create attachment for email', mtype=2)
 
-        msg['Subject'] = 'Backup completed on host ' + socket.getfqdn()
+        msg['Subject'] = 'Host: ' + socket.getfqdn() + ' Fatal errors: ' + str(self.fatal_errors) + ' Job errors: ' \
+                         + str(self.job_errors) + ' Errors: ' + str(self.errors)
         msg.attach(MIMEText(Logger.get_log(self)))
 
         # Send mail
@@ -521,7 +529,7 @@ class WriteFile():
         self.filename = filename
         self.diff = diff_map
         if diff_map:
-            self.file = open(self.filename, "a", encoding='ASCII')
+            self.file = open(self.filename, "w", encoding='ASCII')
         else:
             self.file = open(self.filename, "wb")
 
