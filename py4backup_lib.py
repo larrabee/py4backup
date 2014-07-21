@@ -151,8 +151,8 @@ class Logger():
             except:
                 Logger.add(self, 'Unknown error while create attachment for email', mtype=2)
 
-        msg['Subject'] = 'Host: ' + socket.getfqdn() + ' Fatal errors: ' + str(self.fatal_errors) + ' Job errors: ' \
-                         + str(self.job_errors) + ' Errors: ' + str(self.errors)
+        msg['Subject'] = 'Host: ' + socket.getfqdn() + ' Job errors: ' + str(self.job_errors) \
+                         + ' Errors: ' + str(self.errors)
         msg.attach(MIMEText(Logger.get_log(self)))
 
         # Send mail
